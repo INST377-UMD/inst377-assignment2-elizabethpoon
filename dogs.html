@@ -1,0 +1,100 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dogs</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/annyang/2.6.1/annyang.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/simple-slider"></script>
+</head>
+<body>
+  <nav>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="stocks.html">Stocks</a></li>
+      <li><a href="dogs.html">Dogs</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <h1>Dog Gallery</h1>
+    <div id="dogCarousel" class="slider"></div>
+
+    <h2>Dog Breeds</h2>
+    <div id="breedButtons"></div>
+    <div id="breedInfo" class="hidden"></div>
+  </main>
+
+  <div id="audio-controls">
+    <h3>Voice Commands</h3>
+    <p>Say: "Hello" | "Change the color to green" | "Navigate to home" | "Load dog breed poodle"</p>
+    <button onclick="annyang.start()">Turn On Audio</button>
+    <button onclick="annyang.abort()">Turn Off Audio</button>
+  </div>
+
+  <script>
+    async function loadCarousel() {
+      const res = await fetch('https://dog.ceo/api/breeds/image/random/10');
+      const data = await res.json();
+      const container = document.getElementById('dogCarousel');
+      container.innerHTML = data.message.map(img => `<img src="${img}" alt="dog"/>`).join('');
+    }
+
+    async function loadBreeds() {
+      const res = await fetch('https://dog.ceo/api/breeds/list/all');
+      const data = await res.json();
+      const breeds = Object.keys(data.message);
+      const container = document.getElementById('breedButtons');
+
+      breeds.forEach(breed => {
+        const btn = document.createElement('button');
+        btn.className = 'custom-btn';
+        btn.innerText = breed;
+        btn.onclick = () => loadBreedInfo(breed);
+        container.appendChild(btn);
+      });
+    }
+
+    async function loadBreedInfo(breed) {
+      const res = await fetch(`https://api.thedogapi.com/v1/breeds/search?q=${breed}`);
+      const data = await res.json();
+      const breedData = data[0];
+      const container = document.getElementById('breedInfo');
+
+      if (!breedData) {
+        container.innerHTML = '<p>Breed info not found.</p>';
+      } else {
+        container.innerHTML = `
+          <h3>${breedData.name}</h3>
+          <p>${breedData.temperament || 'No description available.'}</p>
+          <p>Min Life Span: ${breedData.life_span.split(' ')[0]}</p>
+          <p>Max Life Span: ${breedData.life_span.split(' ').slice(-2).join(' ')}</p>
+        `;
+      }
+      container.classList.remove('hidden');
+    }
+
+    loadCarousel();
+    loadBreeds();
+
+    if (annyang) {
+      const commands = {
+        'hello': () => alert('Hello World'),
+        'change the color to *color': (color) => {
+          document.body.style.backgroundColor = color;
+        },
+        'navigate to *page': (page) => {
+          const destination = page.toLowerCase();
+          if (destination.includes('home')) location.href = 'index.html';
+          else if (destination.includes('stocks')) location.href = 'stocks.html';
+          else if (destination.includes('dogs')) location.href = 'dogs.html';
+        },
+        'load dog breed *breed': (breed) => {
+          loadBreedInfo(breed.toLowerCase());
+        }
+      };
+      annyang.addCommands(commands);
+    }
+  </script>
+</body>
+</html>
