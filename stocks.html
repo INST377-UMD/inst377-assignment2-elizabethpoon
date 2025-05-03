@@ -1,0 +1,120 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stocks</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/annyang/2.6.1/annyang.min.js"></script>
+</head>
+<body>
+  <nav>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="stocks.html">Stocks</a></li>
+      <li><a href="dogs.html">Dogs</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <h1>Stock Lookup</h1>
+    <input type="text" id="tickerInput" placeholder="Enter stock ticker" />
+    <select id="dayRange">
+      <option value="30">30 Days</option>
+      <option value="60">60 Days</option>
+      <option value="90">90 Days</option>
+    </select>
+    <button class="custom-btn" onclick="getStockData()">Get Chart</button>
+    <canvas id="stockChart"></canvas>
+
+    <h2>Top 5 Reddit Stocks</h2>
+    <table id="redditTable">
+      <thead>
+        <tr>
+          <th>Ticker</th>
+          <th>Comments</th>
+          <th>Sentiment</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </main>
+
+  <div id="audio-controls">
+    <h3>Voice Commands</h3>
+    <p>Say: "Hello" | "Change the color to blue" | "Navigate to dogs" | "Lookup MSFT"</p>
+    <button onclick="annyang.start()">Turn On Audio</button>
+    <button onclick="annyang.abort()">Turn Off Audio</button>
+  </div>
+
+  <script>
+    async function getStockData() {
+      const key = 'RVMTpVpLwvzLaL6Zaqxp8_nB_98DpcmI'; 
+      const ticker = document.getElementById('tickerInput').value.toUpperCase();
+      const days = parseInt(document.getElementById('dayRange').value);
+      const endDate = new Date();
+      const startDate = new Date(endDate);
+      startDate.setDate(endDate.getDate() - days);
+
+      const formatDate = (d) => d.toISOString().split('T')[0];
+      const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/day/${formatDate(startDate)}/${formatDate(endDate)}?adjusted=true&sort=asc&apiKey=${key}`;
+
+      const res = await fetch(url);
+      const json = await res.json();
+
+      const labels = json.results.map(d => new Date(d.t * 1000).toLocaleDateString());
+      const data = json.results.map(d => d.c);
+
+      new Chart(document.getElementById('stockChart'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{ label: ticker, data: data, fill: false, borderColor: 'blue' }]
+        },
+        options: { responsive: true }
+      });
+    }
+
+    async function loadRedditStocks() {
+      const res = await fetch('https://tradestie.com/api/v1/apps/reddit?date=2022-04-03');
+      const json = await res.json();
+      const tbody = document.querySelector('#redditTable tbody');
+      tbody.innerHTML = '';
+
+      json.slice(0, 5).forEach(stock => {
+        const icon = stock.sentiment === 'Bullish' ? '🐂' : '🐻';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><a href="https://finance.yahoo.com/quote/${stock.ticker}" target="_blank">${stock.ticker}</a></td>
+          <td>${stock.no_of_comments}</td>
+          <td>${icon}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    loadRedditStocks();
+
+    if (annyang) {
+      const commands = {
+        'hello': () => alert('Hello World'),
+        'change the color to *color': (color) => {
+          document.body.style.backgroundColor = color;
+        },
+        'navigate to *page': (page) => {
+          const destination = page.toLowerCase();
+          if (destination.includes('home')) location.href = 'index.html';
+          else if (destination.includes('stocks')) location.href = 'stocks.html';
+          else if (destination.includes('dogs')) location.href = 'dogs.html';
+        },
+        'lookup *stock': (stock) => {
+          document.getElementById('tickerInput').value = stock.toUpperCase();
+          document.getElementById('dayRange').value = '30';
+          getStockData();
+        }
+      };
+      annyang.addCommands(commands);
+    }
+  </script>
+</body>
+</html>
